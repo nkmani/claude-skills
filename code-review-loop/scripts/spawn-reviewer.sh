@@ -30,7 +30,11 @@ prompt="/loop ${interval} /code-review-loop review ${pr}"
 #   - Plain single-quote wrapping works because repo_root and prompt are
 #     controlled by this script (no embedded single quotes). Fails for repo
 #     paths containing "'", but that's effectively never on macOS.
-shell_cmd="cd '$repo_root' && claude '$prompt'"
+#
+# CODEREV_LOOP_AUTO_CLOSE=1 marks this as a disposable spawned window so
+# auto-close-terminal.sh will close it on the reviewer's final tick. The
+# implementer's primary session has no such marker and is left alone.
+shell_cmd="export CODEREV_LOOP_AUTO_CLOSE=1; cd '$repo_root' && claude '$prompt'"
 
 echo "spawn-reviewer.sh: shell_cmd = $shell_cmd"
 
