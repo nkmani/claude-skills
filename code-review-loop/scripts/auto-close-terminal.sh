@@ -67,10 +67,21 @@ fi
 
 # Target THIS script's own window by tty, not the frontmost window — the
 # user may have focused a different Terminal during the countdown.
-my_tty=$(tty 2>/dev/null || true)
+#
+# Two-step resolution: `tty` works when stdin is a real terminal, but when
+# this script runs as a subprocess of claude's Bash tool (the production
+# case for the reviewer's auto-close call), stdin is piped and `tty` says
+# "not a tty". Fall back to walking up to $PPID — claude inherits the
+# Terminal's tty, so its controlling tty is the one we want to match.
+my_tty=$(tty || true)
 if [[ -z "$my_tty" || "$my_tty" == "not a tty" ]]; then
-  echo "auto-close-terminal.sh: could not resolve own tty — leaving window open." >&2
-  exit 0
+  parent_tty=$(ps -o tty= -p "$PPID" 2>/dev/null | tr -d ' ')
+  if [[ -n "$parent_tty" && "$parent_tty" != "?" && "$parent_tty" != "??" ]]; then
+    my_tty="/dev/$parent_tty"
+  else
+    echo "auto-close-terminal.sh: could not resolve own tty (parent tty: ${parent_tty:-none}) — leaving window open." >&2
+    exit 0
+  fi
 fi
 
 # Backgrounded so the close signal isn't racing with this script's own exit.
