@@ -37,8 +37,8 @@ First invocation (no state file yet):
 Subsequent ticks (state file exists):
 - Read `status` and `last_verdict` via `scripts/state.sh get <pr>`
 - `REQUEST_CHANGES`: pull reviewer's inline comments via `gh pr view --comments` + `gh api .../reviews/.../comments`; address each; commit + push; `state.sh set <pr> status implementing`
-- `APPROVE` with `status != merged`: run pre-merge checks (`make test-py` or whatever the repo uses); `gh pr merge --squash --auto`; `state.sh set <pr> status merged`; **exit loop**
-- `status == merged` or `iteration >= max_iterations`: print summary and **exit loop**
+- `APPROVE` with `status != merged`: run pre-merge checks (`make test-py` or whatever the repo uses); `gh pr merge --squash --auto`; `state.sh set <pr> status merged`; print summary; run `scripts/auto-close-terminal.sh 15 "PR #<pr> merged."`; **exit loop**
+- `status == merged` or `iteration >= max_iterations`: print summary; run `scripts/auto-close-terminal.sh 15 "PR #<pr> <merged|failed>."`; **exit loop**
 - Pending review (no new verdict since last push): noop, wait next tick
 
 ### Reviewer (`review <pr#>`)
@@ -62,7 +62,7 @@ Each /loop tick:
    gh pr review <pr> --comment -F /tmp/pr<pr>-review.md
    ```
 5. Parse own verdict and update state: `scripts/parse-verdict.sh <pr>` reads the latest review's `state` first; on `COMMENTED` it greps the body for the sentinel. Writes `last_verdict` + `last_reviewed_sha` + bumps `iteration`.
-6. If verdict is `APPROVE` and merge happens externally → reviewer's next tick sees `status == merged` and exits the /loop.
+6. If verdict is `APPROVE` and merge happens externally → reviewer's next tick sees `status == merged`, runs `scripts/auto-close-terminal.sh 15 "PR #<pr> merged."`, and exits the /loop.
 
 ## Stopping conditions
 
@@ -77,6 +77,7 @@ The loop ends on **any** of:
 - `scripts/has-new-commits.sh <pr>` — exits 0 if PR head SHA differs from `last_reviewed_sha`
 - `scripts/parse-verdict.sh <pr>` — reads latest review on PR, writes verdict + SHA into state
 - `scripts/spawn-reviewer.sh <pr>` — osascript opens new Terminal.app window running the reviewer
+- `scripts/auto-close-terminal.sh [delay] [msg]` — countdown + osascript closes the front Terminal window; cancel by interrupting (Esc/Ctrl-C). No-op off macOS.
 
 ## Conventions
 
